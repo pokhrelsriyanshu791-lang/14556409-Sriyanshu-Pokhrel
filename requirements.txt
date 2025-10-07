@@ -1,0 +1,26 @@
+# POP Project Dependencies
+# Core web framework
+Flask==3.0.0
+Werkzeug==3.0.1
+
+# Data processing and analysis
+pandas==2.1.4
+numpy==1.26.2
+
+# Machine learning
+scikit-learn==1.3.2
+joblib==1.3.2
+
+gunicorn==21.2.0
+
+# Additional utilities (automatically installed with above packages)
+# Jinja2==3.1.2          # Template engine (comes with Flask)
+# MarkupSafe==2.1.3       # Safe string handling (comes with Flask)
+# click==8.1.7            # CLI utilities (comes with Flask)
+# itsdangerous==2.1.2     # Secure data serialization (comes with Flask)
+# blinker==1.7.0          # Signal support (comes with Flask)
+# python-dateutil==2.8.2  # Date utilities (comes with pandas)
+# pytz==2023.3.post1      # Timezone support (comes with pandas)
+# six==1.16.0             # Python 2/3 compatibility (comes with pandas)
+# threadpoolctl==3.2.0    # Thread pool control (comes with scikit-learn)
+# scipy==1.11.4           # Scientific computing (comes with scikit-learn)

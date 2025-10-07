@@ -1,0 +1,11 @@
+Item,Predicted_Demand,Current_Stock,Reorder_Flag
+Back brakes,82.79769345238094,0.0,Yes
+Body Kit,108.20448179271709,0.0,Yes
+Engine Block,104.56315789473683,10.0,Yes
+Front Brake,98.68764880952384,12.0,Yes
+Front neon kit,87.81041666666668,0.0,Yes
+Offroad tyres,128.59635416666666,0.0,Yes
+Piston,138.79598765432098,0.0,Yes
+Shell Helix,101.5865740740741,28.0,Yes
+Summer Tires,128.89419642857143,18.0,Yes
+Winter tyres,108.4157894736842,0.0,Yes

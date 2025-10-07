@@ -1,0 +1,11 @@
+product_id,name,section,price,stock,description
+P001,Front Brake,Brake,1500.0,3,Brake pads
+P002,Summer Tires,Tyres,48000.0,6,Quality summer tires
+P003,Shell Helix,Engine Oils,1100.0,11,Engine oil
+P004,Engine Block,Engine Parts,400000.0,5,Core engine block
+P005,Body Kit,Body Kit,150000.0,8,Aerodynamic kit
+P0006,Piston,Engine Parts,12000.0,5,Quality rust free piston
+P0007,Back brakes,Brake,2000.0,0,Back Brake Pads
+P0008,Winter tyres,Tyres,68000.0,7,winter tyres
+P0009,Front neon kit,Body Kit,97000.0,3,Front Neon Kit
+P0010,Offroad tyres,Tyres,55000.0,18,Offroad tyres

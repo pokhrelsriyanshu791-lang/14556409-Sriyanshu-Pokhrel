@@ -1,0 +1,16 @@
+Category,Item,Stock,Price
+Tires,Summer Tires,18,48000.0
+Tires,Winter Tires,16,71000.0
+Tires,Racing Tires,9,100000
+Engine Oils,Castrol,32,1500
+Engine Oils,Gulf,33,1500
+Engine Oils,Shell Helix,28,1100
+Brakes,Front Brake,12,1200
+Brakes,Rear Brake,19,1200
+Brakes,Brake Wire,23,3000
+Engine Parts,Engine Block,10,400000
+Engine Parts,Pistons,8,200000
+Engine Parts,Spark Plug,12,2000
+Lights,Front Headlights,13,70000
+Lights,Rear Lights,16,41000.0
+Lights,Neon Kit,11,110000.0
