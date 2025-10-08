@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Unified Inventory Management</h2>
+  
+  <div class="mb-3">
+    <a class="btn btn-primary" href="/admin">Back to Admin Dashboard</a>
+    <button class="btn btn-success ms-2" onclick="refreshInventory()">
+      <i class="fas fa-sync-alt"></i> Refresh Data
+    </button>
+  </div>
+  
+  <div class="alert alert-info">
+    <i class="fas fa-info-circle"></i>
+    <strong>Dynamic Inventory Insights:</strong> This table shows real-time inventory status with AI-powered demand predictions and automatic reorder recommendations.
+  </div>
+  
+  {% if inventory_data and inventory_data|length > 0 %}
+    <div class="table-responsive">
+      <table class="table table-striped table-hover">
+        <thead class="table-dark">
+          <tr>
+            <th><i class="fas fa-box"></i> Product</th>
+            <th><i class="fas fa-warehouse"></i> Current Stock</th>
+            <th><i class="fas fa-chart-line"></i> Recent Sales (7d)</th>
+            <th><i class="fas fa-info-circle"></i> Status</th>
+            <th><i class="fas fa-crystal-ball"></i> Predicted Demand (7d)</th>
+            <th><i class="fas fa-flag"></i> Reorder Flag</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in inventory_data %}
+          <tr>
+            <td>
+              <strong>{{ item['product'] }}</strong>
+            </td>
+            <td>
+              <span class="badge bg-secondary fs-6">{{ item['current_stock'] }}</span>
+            </td>
+            <td>
+              <span class="badge bg-info fs-6">{{ item['recent_sales_7d'] }}</span>
+            </td>
+            <td>
+              {% if item['status'] == 'Out of Stock' %}
+                <span class="badge bg-danger fs-6">
+                  <i class="fas fa-exclamation-triangle"></i> {{ item['status'] }}
+                </span>
+              {% elif item['status'] == 'Low Stock' %}
+                <span class="badge bg-warning fs-6">
+                  <i class="fas fa-exclamation-circle"></i> {{ item['status'] }}
+                </span>
+              {% else %}
+                <span class="badge bg-success fs-6">
+                  <i class="fas fa-check-circle"></i> {{ item['status'] }}
+                </span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge bg-primary fs-6">{{ item['predicted_demand_7d'] }}</span>
+            </td>
+            <td>
+              <span class="badge bg-{{ item['reorder_flag']['class'] }} fs-6">
+                {{ item['reorder_flag']['icon'] }} {{ item['reorder_flag']['text'] }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="mt-4">
+      <h5><i class="fas fa-legend"></i> Legend:</h5>
+      <div class="row">
+        <div class="col-md-6">
+          <span class="badge bg-danger me-2">⚠️ Reorder Needed</span>
+          <small class="text-muted">Stock is significantly lower than predicted demand</small>
+        </div>
+        <div class="col-md-6">
+          <span class="badge bg-warning me-2">⚡ Stable Stock</span>
+          <small class="text-muted">Stock is near predicted demand</small>
+        </div>
+      </div>
+      <div class="row mt-2">
+        <div class="col-md-6">
+          <span class="badge bg-success me-2">✅ No Reorder Needed</span>
+          <small class="text-muted">Stock is 20+ units higher than predicted demand</small>
+        </div>
+        <div class="col-md-6">
+          <span class="badge bg-info me-2">👁️ Monitor</span>
+          <small class="text-muted">Stock is between stable and no reorder thresholds</small>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="alert alert-warning">
+      <i class="fas fa-exclamation-triangle"></i>
+      <strong>No inventory data available.</strong> Please check your product and sales data.
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function refreshInventory() {
+    // Show loading state
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+    button.disabled = true;
+    
+    // Call API to refresh inventory data
+    fetch('/api/inventory/refresh')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Update the page with new data
+                updateInventoryTable(data.inventory_data);
+                showNotification('Inventory data refreshed successfully!', 'success');
+            } else {
+                showNotification('Error refreshing inventory data', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error refreshing inventory data', 'error');
+        })
+        .finally(() => {
+            // Reset button state
+            button.innerHTML = originalText;
+            button.disabled = false;
+        });
+}
+
+function updateInventoryTable(inventoryData) {
+    const tbody = document.querySelector('tbody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    inventoryData.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><strong>${item.product}</strong></td>
+            <td><span class="badge bg-secondary fs-6">${item.current_stock}</span></td>
+            <td><span class="badge bg-info fs-6">${item.recent_sales_7d}</span></td>
+            <td>
+                <span class="badge bg-${getStatusClass(item.status)} fs-6">
+                    <i class="fas fa-${getStatusIcon(item.status)}"></i> ${item.status}
+                </span>
+            </td>
+            <td><span class="badge bg-primary fs-6">${item.predicted_demand_7d}</span></td>
+            <td>
+                <span class="badge bg-${item.reorder_flag.class} fs-6">
+                    ${item.reorder_flag.icon} ${item.reorder_flag.text}
+                </span>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function getStatusClass(status) {
+    switch(status) {
+        case 'Out of Stock': return 'danger';
+        case 'Low Stock': return 'warning';
+        case 'In Stock': return 'success';
+        default: return 'secondary';
+    }
+}
+
+function getStatusIcon(status) {
+    switch(status) {
+        case 'Out of Stock': return 'exclamation-triangle';
+        case 'Low Stock': return 'exclamation-circle';
+        case 'In Stock': return 'check-circle';
+        default: return 'info-circle';
+    }
+}
+
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 3000);
+}
+
+// Auto-refresh every 5 minutes
+setInterval(() => {
+    if (document.visibilityState === 'visible') {
+        refreshInventory();
+    }
+}, 300000); // 5 minutes
+
+// Show last updated time
+document.addEventListener('DOMContentLoaded', function() {
+    const lastUpdated = new Date().toLocaleString();
+    const infoAlert = document.querySelector('.alert-info');
+    if (infoAlert) {
+        infoAlert.innerHTML += `<br><small>Last updated: ${lastUpdated}</small>`;
+    }
+});
+</script>
+{% endblock %}
+
+

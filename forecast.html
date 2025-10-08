@@ -1,0 +1,536 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.forecast-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+.chart-container {
+    position: relative;
+    height: 400px;
+    margin: 20px 0;
+}
+.timeframe-controls {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+.forecast-summary {
+    background: #e9ecef;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+.custom-date-controls {
+    display: none;
+    margin-top: 15px;
+}
+.loading-spinner {
+    text-align: center;
+    padding: 40px;
+    display: none;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="forecast-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="bi bi-graph-up"></i> Demand Forecasting Dashboard</h3>
+        <a href="/admin" class="btn btn-secondary">← Back to Admin</a>
+    </div>
+
+    <!-- Timeframe Controls -->
+    <div class="timeframe-controls">
+        <h5>Select Forecast Timeframe</h5>
+        <div class="row">
+            <div class="col-md-6">
+                <label for="timeframe" class="form-label">Timeframe:</label>
+                <select id="timeframe" class="form-select" onchange="updateTimeframe()">
+                    <option value="1" {% if timeframe == "1" %}selected{% endif %}>1 Day</option>
+                    <option value="2" {% if timeframe == "2" %}selected{% endif %}>2 Days</option>
+                    <option value="3" {% if timeframe == "3" %}selected{% endif %}>3 Days</option>
+                    <option value="custom" {% if timeframe == "custom" %}selected{% endif %}>Custom Range</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <div class="custom-date-controls" id="customDateControls">
+                    <div class="row">
+                        <div class="col-6">
+                            <label for="startDate" class="form-label">Start Date:</label>
+                            <input type="date" id="startDate" class="form-control" value="{{ start_date }}" onchange="updateCustomRange()">
+                        </div>
+                        <div class="col-6">
+                            <label for="endDate" class="form-label">End Date:</label>
+                            <input type="date" id="endDate" class="form-control" value="{{ end_date }}" onchange="updateCustomRange()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forecast Summary -->
+    {% if forecast_data %}
+    <div class="forecast-summary">
+        <h6>Forecast Summary</h6>
+        <div class="row">
+            <div class="col-md-2">
+                <strong>Analysis Period:</strong><br>
+                {{ forecast_data.timeframe_info.start_date }} to {{ forecast_data.timeframe_info.end_date }}
+            </div>
+            <div class="col-md-2">
+                <strong>Days Analyzed:</strong><br>
+                {{ forecast_data.timeframe_info.days_count }} days
+            </div>
+            <div class="col-md-2">
+                <strong>Products Tracked:</strong><br>
+                {{ forecast_data.products|length }} products
+            </div>
+            <div class="col-md-2">
+                <strong>Model Types:</strong><br>
+                {% if forecast_data.model_summary %}
+                    {{ forecast_data.model_summary.ml_models }} ML / {{ forecast_data.model_summary.get('ema_models', 0) }} EMA / {{ forecast_data.model_summary.naive_models }} Simple
+                {% else %}
+                    N/A
+                {% endif %}
+            </div>
+            <div class="col-md-2">
+                <strong>Prediction Horizon:</strong><br>
+                Next 7 days
+            </div>
+            <div class="col-md-2">
+                <strong>Last Updated:</strong><br>
+                <span id="lastUpdated">Just now</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Loading Spinner -->
+    <div class="loading-spinner" id="loadingSpinner">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading forecast data...</span>
+        </div>
+        <p class="mt-2">Calculating forecast...</p>
+    </div>
+
+    <!-- Chart Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Demand Trend (SMA vs EMA)</h5>
+            <small class="text-muted">Blue: Actual sales | Green: SMA | Purple: EMA</small>
+        </div>
+        <div class="card-body">
+            <div class="chart-container">
+                <canvas id="forecastChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Metrics Download -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Model Performance</h5>
+            <small class="text-muted">Download detailed metrics for analysis</small>
+        </div>
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="mb-1">Detailed model performance metrics are available for download.</p>
+                    <small class="text-muted">Includes MAE, RMSE, MAPE for SMA and EMA models</small>
+                </div>
+                <a href="/forecast/metrics" class="btn btn-outline-primary" download>
+                    <i class="bi bi-download"></i> Download Metrics CSV
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forecast Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Product Forecast Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" id="forecastTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Product</th>
+                            <th>Actual Sales (Units)</th>
+                            <th>Forecasted Sales (Units)</th>
+                            <th>Actual Revenue (NRS)</th>
+                            <th>Forecasted Revenue (NRS)</th>
+                            <th>Daily Average</th>
+                            <th>Trend</th>
+                            <th>Model Type</th>
+                            <th>Accuracy (MAE)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="forecastTableBody">
+                        {% if forecast_data and forecast_data.products %}
+                            {% for product in forecast_data.products %}
+                            <tr>
+                                <td><strong>{{ product.product }}</strong></td>
+                                <td>{{ product.actual_sales }}</td>
+                                <td>{{ product.forecasted_sales }}</td>
+                                <td>NRS {{ "%.2f"|format(product.actual_revenue) }}</td>
+                                <td>NRS {{ "%.2f"|format(product.forecasted_revenue) }}</td>
+                                <td>{{ product.daily_avg }} units/day</td>
+                                <td>
+                                    {% if product.trend == "Growing" %}
+                                        <span class="badge bg-success">↗ {{ product.trend }}</span>
+                                    {% elif product.trend == "Declining" %}
+                                        <span class="badge bg-warning">↘ {{ product.trend }}</span>
+                                    {% else %}
+                                        <span class="badge bg-info">→ {{ product.trend }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if product.model_type == "random_forest" %}
+                                        <span class="badge bg-primary">ML Model</span>
+                                    {% elif product.model_type == "ema" %}
+                                        <span class="badge bg-success">EMA</span>
+                                    {% elif product.model_type == "ema_fallback" %}
+                                        <span class="badge bg-warning">EMA Fallback</span>
+                                    {% elif product.model_type == "naive" %}
+                                        <span class="badge bg-secondary">Simple Avg</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">{{ product.model_type }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if product.metrics and product.metrics.has_metrics %}
+                                        {{ "%.2f"|format(product.metrics.mae) }}
+                                        <small class="text-muted d-block">
+                                            RMSE: {{ "%.2f"|format(product.metrics.rmse) }}<br>
+                                            MAPE: {{ "%.1f"|format(product.metrics.mape) }}%
+                                            {% if product.metrics.reliability_warning %}
+                                                <br><span class="text-warning">⚠ {{ product.metrics.reliability_warning }}</span>
+                                            {% endif %}
+                                        </small>
+                                    {% elif product.metrics and product.metrics.mae %}
+                                        <span class="text-warning">{{ product.metrics.mae }}</span>
+                                        {% if product.metrics.mae == "Not enough data" %}
+                                            <small class="text-muted d-block">Need 2+ days</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted">No sales data available for the selected timeframe.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let forecastChart = null;
+
+// Initialize chart on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const timeframe = document.getElementById('timeframe').value;
+    if (timeframe === 'custom') {
+        document.getElementById('customDateControls').style.display = 'block';
+    }
+    
+    {% if forecast_data %}
+    initializeChart({{ forecast_data.chart_data | tojson }});
+    {% endif %}
+});
+
+function initializeChart(chartData) {
+    const ctx = document.getElementById('forecastChart').getContext('2d');
+    
+    if (forecastChart) {
+        forecastChart.destroy();
+    }
+    
+    // Calculate max value for proper scaling (excluding forecast)
+    const allValues = [...chartData.actual, ...chartData.sma, ...chartData.ema].filter(val => val !== null);
+    const maxValue = Math.max(...allValues);
+    const yAxisMax = Math.ceil(maxValue * 1.1);
+    
+    const datasets = [{
+        label: 'Actual Sales',
+        data: chartData.actual,
+        borderColor: '#0d6efd',
+        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+        borderWidth: 3,
+        fill: false,
+        tension: 0.4,
+        pointBackgroundColor: '#0d6efd',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 5
+    }];
+    
+    // Add SMA line if data is available
+    if (chartData.sma && chartData.sma.some(val => val !== null)) {
+        datasets.push({
+            label: 'SMA (3-day)',
+            data: chartData.sma,
+            borderColor: '#198754',
+            backgroundColor: 'rgba(25, 135, 84, 0.1)',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            fill: false,
+            tension: 0.4,
+            pointBackgroundColor: '#198754',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: 4
+        });
+    }
+    
+    // Add EMA line if data is available
+    if (chartData.ema && chartData.ema.some(val => val !== null)) {
+        datasets.push({
+            label: 'EMA (α=0.35)',
+            data: chartData.ema,
+            borderColor: '#6f42c1',
+            backgroundColor: 'rgba(111, 66, 193, 0.1)',
+            borderWidth: 2,
+            borderDash: [8, 4],
+            fill: false,
+            tension: 0.4,
+            pointBackgroundColor: '#6f42c1',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: 4
+        });
+    }
+    
+    forecastChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartData.labels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Demand Trend (SMA vs EMA)',
+                    font: {
+                        size: 16,
+                        weight: 'bold'
+                    }
+                },
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: yAxisMax,
+                    title: {
+                        display: true,
+                        text: 'Units Sold'
+                    },
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    },
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                }
+            },
+            animation: {
+                duration: 1500,
+                easing: 'easeInOutQuart'
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            }
+        }
+    });
+}
+
+function updateTimeframe() {
+    const timeframe = document.getElementById('timeframe').value;
+    const customControls = document.getElementById('customDateControls');
+    
+    if (timeframe === 'custom') {
+        customControls.style.display = 'block';
+        return; // Don't update until dates are selected
+    } else {
+        customControls.style.display = 'none';
+        fetchForecastData(timeframe);
+    }
+}
+
+function updateCustomRange() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    
+    if (startDate && endDate) {
+        fetchForecastData('custom', startDate, endDate);
+    }
+}
+
+function fetchForecastData(timeframe, startDate = '', endDate = '') {
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const forecastTable = document.getElementById('forecastTable');
+    
+    // Show loading spinner
+    loadingSpinner.style.display = 'block';
+    forecastTable.style.opacity = '0.5';
+    
+    // Build URL parameters
+    let url = '/forecast/api?timeframe=' + encodeURIComponent(timeframe);
+    if (startDate) url += '&start_date=' + encodeURIComponent(startDate);
+    if (endDate) url += '&end_date=' + encodeURIComponent(endDate);
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+                return;
+            }
+            
+            // Update chart
+            initializeChart(data.chart_data);
+            
+            // Update table
+            updateForecastTable(data.products);
+            
+            // Metrics table removed - download link available instead
+            
+            // Update summary
+            updateSummary(data.timeframe_info, data.products.length, data.model_summary);
+            
+            // Hide loading spinner
+            loadingSpinner.style.display = 'none';
+            forecastTable.style.opacity = '1';
+            
+            // Update timestamp
+            document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
+        })
+        .catch(error => {
+            console.error('Error fetching forecast data:', error);
+            alert('Failed to fetch forecast data. Please try again.');
+            loadingSpinner.style.display = 'none';
+            forecastTable.style.opacity = '1';
+        });
+}
+
+function updateForecastTable(products) {
+    const tbody = document.getElementById('forecastTableBody');
+    
+    if (!products || products.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No sales data available for the selected timeframe.</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = products.map(product => {
+        // Enhanced trend badge based on actual trend analysis
+        let trendBadge = '';
+        if (product.trend === 'Growing') {
+            trendBadge = '<span class="badge bg-success">↗ Growing</span>';
+        } else if (product.trend === 'Declining') {
+            trendBadge = '<span class="badge bg-warning">↘ Declining</span>';
+        } else {
+            trendBadge = '<span class="badge bg-info">→ Stable</span>';
+        }
+        
+        // Model type badge
+        let modelBadge = '';
+        if (product.model_type === 'random_forest') {
+            modelBadge = '<span class="badge bg-primary">ML Model</span>';
+        } else if (product.model_type === 'ema') {
+            modelBadge = '<span class="badge bg-success">EMA</span>';
+        } else if (product.model_type === 'ema_fallback') {
+            modelBadge = '<span class="badge bg-warning">EMA Fallback</span>';
+        } else if (product.model_type === 'naive') {
+            modelBadge = '<span class="badge bg-secondary">Simple Avg</span>';
+        } else {
+            modelBadge = `<span class="badge bg-light text-dark">${product.model_type}</span>`;
+        }
+        
+        // Metrics display
+        let metricsDisplay = '';
+        if (product.metrics && product.metrics.has_metrics) {
+            let warningText = '';
+            if (product.metrics.reliability_warning) {
+                warningText = `<br><span class="text-warning">⚠ ${product.metrics.reliability_warning}</span>`;
+            }
+            
+            metricsDisplay = `
+                ${product.metrics.mae.toFixed(2)}
+                <small class="text-muted d-block">
+                    RMSE: ${product.metrics.rmse.toFixed(2)}<br>
+                    MAPE: ${product.metrics.mape.toFixed(1)}%${warningText}
+                </small>
+            `;
+        } else if (product.metrics && product.metrics.mae) {
+            metricsDisplay = `<span class="text-warning">${product.metrics.mae}</span>`;
+            if (product.metrics.mae === "Not enough data") {
+                metricsDisplay += '<small class="text-muted d-block">Need 2+ days</small>';
+            }
+        } else {
+            metricsDisplay = '<span class="text-muted">N/A</span>';
+        }
+        
+        return `
+            <tr>
+                <td><strong>${product.product}</strong></td>
+                <td>${product.actual_sales}</td>
+                <td>${product.forecasted_sales}</td>
+                <td>NRS ${product.actual_revenue.toFixed(2)}</td>
+                <td>NRS ${product.forecasted_revenue.toFixed(2)}</td>
+                <td>${product.daily_avg} units/day</td>
+                <td>${trendBadge}</td>
+                <td>${modelBadge}</td>
+                <td>${metricsDisplay}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Metrics table removed - users can download CSV instead
+
+function updateSummary(timeframeInfo, productCount, modelSummary) {
+    // Update summary information if elements exist
+    const summaryElements = document.querySelectorAll('.forecast-summary .row .col-md-2');
+    if (summaryElements.length >= 6) {
+        summaryElements[0].innerHTML = `<strong>Analysis Period:</strong><br>${timeframeInfo.start_date} to ${timeframeInfo.end_date}`;
+        summaryElements[1].innerHTML = `<strong>Days Analyzed:</strong><br>${timeframeInfo.days_count} days`;
+        summaryElements[2].innerHTML = `<strong>Products Tracked:</strong><br>${productCount} products`;
+        
+        if (modelSummary) {
+            const emaCount = modelSummary.ema_models || 0;
+            summaryElements[3].innerHTML = `<strong>Model Types:</strong><br>${modelSummary.ml_models} ML / ${emaCount} EMA / ${modelSummary.naive_models} Simple`;
+        } else {
+            summaryElements[3].innerHTML = `<strong>Model Types:</strong><br>N/A`;
+        }
+        
+        summaryElements[4].innerHTML = `<strong>Prediction Horizon:</strong><br>Next 7 days`;
+    }
+}
+</script>
+{% endblock %}

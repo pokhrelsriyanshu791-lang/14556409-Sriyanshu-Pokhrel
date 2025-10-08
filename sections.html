@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h3>Sections</h3>
+  <div class="row row-cols-1 row-cols-md-3 g-4">
+    {% for s in sections %}
+    <div class="col">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body text-center">
+          <h5 class="card-title">{{ s }}</h5>
+          <a class="btn btn-primary" href="/products/{{ s }}">View Products</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+{% endblock %}
+
+

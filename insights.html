@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+{% block content %}
+  <h3>Sales Insights</h3>
+  
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <label for="timeframe" class="form-label">Timeframe</label>
+      <select id="timeframe" class="form-select">
+        <option value="12">12 hours</option>
+        <option value="24">1 day</option>
+        <option value="72" selected>3 days</option>
+        <option value="custom">Custom</option>
+      </select>
+    </div>
+    <div class="col-md-4" id="custom-days" style="display: none;">
+      <label for="custom-days-input" class="form-label">Custom Days</label>
+      <input type="number" id="custom-days-input" class="form-control" min="1" placeholder="Enter days">
+    </div>
+    <div class="col-md-4">
+      <label for="category" class="form-label">Category</label>
+      <select id="category" class="form-select">
+        <option value="All">All Categories</option>
+        <option value="Brake">Brake</option>
+        <option value="Tyres">Tyres</option>
+        <option value="Body Kit">Body Kit</option>
+        <option value="Engine Oils">Engine Oils</option>
+        <option value="Engine Parts">Engine Parts</option>
+      </select>
+    </div>
+  </div>
+  
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Top Products by Demand</h5>
+          <div id="loading" class="text-center" style="display: none;">
+            <div class="spinner-border" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+          <div id="chart-container" class="fade-in">
+            <canvas id="demandChart" width="400" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Top 5 Products</h5>
+          <div id="table-container" class="fade-in">
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
+                  <tr><th>Product</th><th>Count</th><th>%</th></tr>
+                </thead>
+                <tbody id="products-table">
+                  <tr><td colspan="3" class="text-center">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="{{ url_for('static', filename='js/insights.js') }}"></script>
+{% endblock %}

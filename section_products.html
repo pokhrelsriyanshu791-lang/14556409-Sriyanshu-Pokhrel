@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h3>{{ section }} Products</h3>
+  {% if items and items|length > 0 %}
+    <div class="table-responsive">
+      <table class="table table-striped table-hover">
+        <thead><tr><th>ID</th><th>Name</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for p in items %}
+          <tr>
+            <td>{{ p['product_id'] }}</td>
+            <td>{{ p['name'] }}</td>
+            <td>{{ p['price'] }}</td>
+            <td>{{ p['stock'] }}</td>
+            <td>
+              {% if p['stock'] <= 0 %}
+                <span class="badge bg-danger">Out of Stock</span>
+              {% elif p['stock'] <= 5 %}
+                <span class="badge bg-warning">Low Stock</span>
+              {% else %}
+                <span class="badge bg-success">In Stock</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if session.get('role') == 'admin' %}
+                <span class="text-muted">Admin View</span>
+              {% elif p['stock'] <= 0 %}
+                <button class="btn btn-sm btn-secondary" disabled>Out of Stock</button>
+              {% else %}
+                <form method="post" action="/cart/add" class="d-flex">
+                  <input type="hidden" name="product_id" value="{{ p['product_id'] }}" />
+                  <input type="number" name="quantity" value="1" min="1" max="{{ p['stock'] }}" class="form-control form-control-sm me-2" style="max-width: 90px;" />
+                  <button type="submit" class="btn btn-sm btn-success">Add</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No products available.</p>
+  {% endif %}
+{% endblock %}
+
+

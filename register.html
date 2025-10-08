@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <h3>Register</h3>
+    <form method="post">
+      <div class="mb-3">
+        <label class="form-label">Username (1-8 characters)</label>
+        <input type="text" name="username" class="form-control" maxlength="8" minlength="1" required />
+        <div class="form-text">Must be 1-8 characters</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Email (optional)</label>
+        <input type="email" name="email" class="form-control" />
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Password (6-10 characters)</label>
+        <input type="password" name="password" class="form-control" maxlength="10" minlength="6" required />
+        <div class="form-text">Must be 6-10 characters</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Confirm Password</label>
+        <input type="password" name="confirm" class="form-control" maxlength="10" minlength="6" required />
+      </div>
+      <button type="submit" class="btn btn-primary">Register</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+
